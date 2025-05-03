@@ -60,27 +60,75 @@ exports.getCompetitions = async (req, res) => {
       }
     });
 
-    const competitions = response.data.response.map(item => {
-      // Lọc mùa giải hiện tại
-      const currentSeason = item.seasons.find(season => season.current) || item.seasons.at(-1);
+    const competitions = response.data.response
+      .map(item => {
+        // Tìm mùa giải hiện tại hoặc cuối cùng nằm trong khoảng 2021–2023
+        const validSeason = item.seasons
+          .filter(season => season.year >= 2021 && season.year <= 2023)
+          .find(season => season.current) || item.seasons
+          .filter(season => season.year >= 2021 && season.year <= 2023)
+          .at(-1);
 
-      return {
-        id: item.league.id,
-        name: item.league.name,
-        country: item.country.name,
-        flag: item.country.flag,
-        logo: item.league.logo,
-        season: {
-          year: currentSeason.year,
-          start: currentSeason.start,
-          end: currentSeason.end
-        }
-      };
-    });
+        if (!validSeason) return null; // Bỏ qua nếu không có mùa nào phù hợp
+
+        return {
+          id: item.league.id,
+          name: item.league.name,
+          country: item.country.name,
+          flag: item.country.flag,
+          logo: item.league.logo,
+          season: {
+            year: validSeason.year,
+            start: validSeason.start,
+            end: validSeason.end
+          }
+        };
+      })
+      .filter(Boolean); // Bỏ null
 
     res.json(competitions);
   } catch (err) {
     console.error('Error fetching competitions:', err.message);
     res.status(500).json({ error: 'Không thể lấy dữ liệu giải đấu từ API-Football' });
+  }
+};
+
+exports.getMatchesByCompetition = async (req, res) => {
+  const { league, season } = req.query;
+
+  if (!league || !season) {
+    return res.status(400).json({ error: 'Thiếu league hoặc season' });
+  }
+
+  try {
+    const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
+      headers: {
+        'x-apisports-key': process.env.API_FOOTBALL_KEY
+      },
+      params: {
+        league,
+        season
+      }
+    });
+
+    const matches = response.data.response.map(item => ({
+      id: item.fixture.id,
+      date: item.fixture.date,
+      status: item.fixture.status.long,
+      venue: item.fixture.venue.name,
+      homeTeam: item.teams.home.name,
+      awayTeam: item.teams.away.name,
+      homeLogo: item.teams.home.logo,
+      awayLogo: item.teams.away.logo,
+      goals: {
+        home: item.goals.home,
+        away: item.goals.away
+      }
+    }));
+
+    res.json(matches);
+  } catch (err) {
+    console.error('Error fetching matches:', err.message);
+    res.status(500).json({ error: 'Không thể lấy dữ liệu trận đấu từ API-Football' });
   }
 };
