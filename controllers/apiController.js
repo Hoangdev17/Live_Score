@@ -12,7 +12,7 @@ const standardizeMatch = (matchData) => {
     id: matchData.id ?? 0,
     homeTeam: matchData.homeTeam ?? '',
     awayTeam: matchData.awayTeam ?? '',
-    utcDate: matchData.date ?? '',
+    date: matchData.date ?? '',
     competition: matchData.competition ?? '',
     country: matchData.country ?? '',
     score: `${homeScore}-${awayScore}`,
