@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/Match.dart';
 
 class MatchService {
-  final String apiUrl = 'http://192.168.100.104:5000/api/matches/live'; // Địa chỉ API của backend Node.js
+  final String apiUrl = 'https://live-score-3h4s.onrender.com/api/matches/live'; // Địa chỉ API của backend Node.js
 
   Future<List<Match>> fetchMatches() async {
     final response = await http.get(Uri.parse(apiUrl));

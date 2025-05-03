@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/Competition.dart';
 
 class CompetitionService {
-  final String apiUrl = 'http://192.168.100.104:5000/api/matches/competitions';
+  final String apiUrl = 'https://live-score-3h4s.onrender.com/api/matches/competitions';
 
   Future<List<Competition>> fetchCompetitions() async {
     final response = await http.get(Uri.parse(apiUrl));
