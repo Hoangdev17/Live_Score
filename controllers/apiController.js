@@ -207,16 +207,16 @@ exports.getMatchById = async (req, res) => {
       status: matchData.fixture.status.long,
       venue: matchData.fixture.venue.name,
       referee: matchData.fixture.referee,
-      homeTeam: matchData.teams.home.name,
-      awayTeam: matchData.teams.away.name,
-      homeLogo: matchData.teams.home.logo,
-      awayLogo: matchData.teams.away.logo,
+      homeTeam: matchData.teams?.home?.name || 'N/A',  // Kiểm tra home team có tồn tại không
+      awayTeam: matchData.teams?.away?.name || 'N/A',  // Kiểm tra away team có tồn tại không
+      homeLogo: matchData.teams?.home?.logo || '',     // Kiểm tra logo home có tồn tại không
+      awayLogo: matchData.teams?.away?.logo || '',     // Kiểm tra logo away có tồn tại không
       goals: {
-        home: matchData.goals.home,
-        away: matchData.goals.away,
+        home: matchData.goals?.home || 0,
+        away: matchData.goals?.away || 0,
       },
-      league: matchData.league.name,
-      season: matchData.league.season,
+      league: matchData.league?.name || 'N/A',         // Kiểm tra league có tồn tại không
+      season: matchData.league?.season || 'N/A',       // Kiểm tra season có tồn tại không
       statistics: (matchData.statistics || []).map((stat) => ({
         team: {
           id: stat.team.id,
@@ -253,26 +253,60 @@ exports.getMatchById = async (req, res) => {
         comments: event.comments,
       })),
       lineups: {
-        home: (matchData.lineups.home || []).map((player) => ({
-          player: {
-            id: player.player.id,
-            name: player.player.name,
-            position: player.player.position,
-            photo: player.player.photo,
-          },
-          formation: player.formation,
-        })),
-        away: (matchData.lineups.away || []).map((player) => ({
-          player: {
-            id: player.player.id,
-            name: player.player.name,
-            position: player.player.position,
-            photo: player.player.photo,
-          },
-          formation: player.formation,
-        })),
+        // Kiểm tra nếu matchData.lineup là một mảng hợp lệ
+        home: Array.isArray(matchData.lineups) && matchData.lineups.length > 0
+          ? matchData.lineups.find((team) => team.team.id === matchData.teams?.home?.id) || null
+          : null,
+        away: Array.isArray(matchData.lineups) && matchData.lineups.length > 1
+          ? matchData.lineups.find((team) => team.team.id === matchData.teams?.away?.id) || null
+          : null,
       },
     };
+
+    // Thêm chi tiết cho lineups (startXI, substitutes)
+    if (match.lineups.home) {
+      match.lineups.home = {
+        formation: match.lineups.home.formation || 'N/A',
+        coach: match.lineups.home.coach ? {
+          name: match.lineups.home.coach.name,
+          photo: match.lineups.home.coach.photo,
+        } : null,
+        startXI: (match.lineups.home.startXI || []).map((player) => ({
+          id: player.player?.id,
+          name: player.player?.name,
+          position: player.player?.position,
+          photo: player.player?.photo,
+        })),
+        substitutes: (match.lineups.home.substitutes || []).map((player) => ({
+          id: player.player?.id,
+          name: player.player?.name,
+          position: player.player?.position,
+          photo: player.player?.photo,
+        })),
+      };
+    }
+
+    if (match.lineups.away) {
+      match.lineups.away = {
+        formation: match.lineups.away.formation || 'N/A',
+        coach: match.lineups.away.coach ? {
+          name: match.lineups.away.coach.name,
+          photo: match.lineups.away.coach.photo,
+        } : null,
+        startXI: (match.lineups.away.startXI || []).map((player) => ({
+          id: player.player?.id,
+          name: player.player?.name,
+          position: player.player?.position,
+          photo: player.player?.photo,
+        })),
+        substitutes: (match.lineups.away.substitutes || []).map((player) => ({
+          id: player.player?.id,
+          name: player.player?.name,
+          position: player.player?.position,
+          photo: player.player?.photo,
+        })),
+      };
+    }
 
     res.json(match);
   } catch (err) {
