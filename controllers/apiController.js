@@ -83,6 +83,8 @@ exports.matchLive = async (req, res) => {
       })
     );
 
+    console.log(response.data);
+
     res.json(matches);
   } catch (err) {
     console.error(err.message);
@@ -173,5 +175,55 @@ exports.getMatchesByCompetition = async (req, res) => {
   } catch (err) {
     console.error('Error fetching matches:', err.message);
     res.status(500).json({ error: 'Không thể lấy dữ liệu trận đấu từ API-Football' });
+  }
+};
+
+exports.getMatchById = async (req, res) => {
+  const { fixtureId } = req.params;
+
+  if (!fixtureId) {
+    return res.status(400).json({ error: 'Thiếu fixture ID' });
+  }
+
+  try {
+    const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
+      headers: {
+        'x-apisports-key': process.env.API_FOOTBALL_KEY,
+      },
+      params: {
+        id: fixtureId,
+      },
+    });
+
+    const matchData = response.data.response[0];
+
+    if (!matchData) {
+      return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+    }
+
+    const match = {
+      id: matchData.fixture.id,
+      date: matchData.fixture.date,
+      status: matchData.fixture.status.long,
+      venue: matchData.fixture.venue.name,
+      referee: matchData.fixture.referee,
+      homeTeam: matchData.teams.home.name,
+      awayTeam: matchData.teams.away.name,
+      homeLogo: matchData.teams.home.logo,
+      awayLogo: matchData.teams.away.logo,
+      goals: {
+        home: matchData.goals.home,
+        away: matchData.goals.away,
+      },
+      league: matchData.league.name,
+      season: matchData.league.season,
+      statistics: matchData.statistics ?? [],
+      events: matchData.events ?? [],
+    };
+
+    res.json(match);
+  } catch (err) {
+    console.error('Error fetching match by ID:', err.message);
+    res.status(500).json({ error: 'Không thể lấy thông tin trận đấu từ API-Football' });
   }
 };
