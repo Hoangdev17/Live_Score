@@ -33,6 +33,8 @@ class MatchService {
     final response = await http.get(Uri.parse('https://live-score-3h4s.onrender.com/api/matches/$matchId'));
 
     if (response.statusCode == 200) {
+      final jsonData = jsonDecode(response.body);
+      print('API Response: $jsonData');
       return MatchDetail.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to load match details');
