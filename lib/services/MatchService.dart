@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:livescore/models/MatchDetail.dart';
 import '../models/Match.dart';
 
 class MatchService {
@@ -25,6 +26,16 @@ class MatchService {
       return jsonList.map((e) => Match.fromJson(e)).toList();
     } else {
       throw Exception('Failed to fetch matches');
+    }
+  }
+
+  Future<MatchDetail> fetchMatchDetail(int matchId) async {
+    final response = await http.get(Uri.parse('https://live-score-3h4s.onrender.com/api/matches/$matchId'));
+
+    if (response.statusCode == 200) {
+      return MatchDetail.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load match details');
     }
   }
 

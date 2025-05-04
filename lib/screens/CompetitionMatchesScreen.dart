@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:livescore/models/Competition.dart';
 import '../models/Match.dart';
 import '../services/MatchService.dart';
+import '../screens/MatchDetailScreen.dart'; // ✅ Import màn hình chi tiết
 
 class CompetitionMatchesScreen extends StatefulWidget {
   final int leagueId;
   final int season;
   final String leagueName;
-  final String logo; // ✅ Add this
+  final String logo;
 
   CompetitionMatchesScreen({
     required this.leagueId,
     required this.season,
     required this.leagueName,
-    required this.logo, // ✅ Add this
+    required this.logo,
   });
 
   @override
@@ -108,13 +109,22 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
           ),
           Expanded(
             child: isLoading
-                ? const Center(
-                child: CircularProgressIndicator(color: Colors.blueAccent))
+                ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
                 : ListView.builder(
               itemCount: matches.length,
               itemBuilder: (context, index) {
                 final match = matches[index];
-                return _buildMatchTile(match);
+                return InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MatchDetailScreen(matchId: match.id),
+                      ),
+                    );
+                  },
+                  child: _buildMatchTile(match),
+                );
               },
             ),
           ),
@@ -145,11 +155,6 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
         ? match.utcDate.split('T')[1].substring(0, 5)
         : match.utcDate;
 
-    // 👇 Log the match info to debug score rendering
-    print(
-        'Match: ${match.homeTeam} vs ${match.awayTeam} | Status: ${match.status} | Score: ${match.homeTeamScore} - ${match.awayTeamScore}'
-    );
-
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
       decoration: const BoxDecoration(
@@ -159,7 +164,6 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
       ),
       child: Row(
         children: [
-          // Time or status
           SizedBox(
             width: 50,
             child: Text(
@@ -167,7 +171,6 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
               style: const TextStyle(color: Colors.white),
             ),
           ),
-          // Home Team
           Expanded(
             flex: 4,
             child: Row(
@@ -191,7 +194,6 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
               ],
             ),
           ),
-          // Score
           Expanded(
             flex: 2,
             child: Text(
@@ -200,10 +202,11 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
                   : '-',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold),
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          // Away Team
           Expanded(
             flex: 4,
             child: Row(

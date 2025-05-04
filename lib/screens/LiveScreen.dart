@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:livescore/screens/MatchDetailScreen.dart';
 import '../models/Match.dart';
 import '../services/MatchService.dart';
 import '../utils/utils.dart';
@@ -178,78 +179,85 @@ class _LiveScreenState extends State<LiveScreen> {
 
   // Tiêu đề trận đấu
   Widget _buildMatchTile(Match match) {
-    // Xác định trạng thái trận đấu dựa trên utcDate
     final matchStatus = _getMatchStatus(match.utcDate);
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatUtcDate(match.utcDate) ?? '00:00',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  match.homeTeam,
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  match.awayTeam,
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: matchStatus == 'LIVE' ? Colors.redAccent : Colors.grey[600],
-                    borderRadius: BorderRadius.circular(6),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => MatchDetailScreen(matchId: match.id)),
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formatUtcDate(match.utcDate) ?? '00:00',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
                   ),
-                  child: Text(
-                    matchStatus == 'LIVE' ? 'Đang diễn ra' : matchStatus == 'FINISHED' ? 'Kết thúc' : 'Sắp diễn ra',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  SizedBox(height: 8),
+                  Text(
+                    match.homeTeam,
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                   ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  match.score,
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
+                  SizedBox(height: 4),
+                  Text(
+                    match.awayTeam,
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('1.36', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                SizedBox(height: 8),
-                Text('4.75', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                SizedBox(height: 8),
-                Text('8.50', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              ],
+            Expanded(
+              flex: 2,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: matchStatus == 'LIVE' ? Colors.redAccent : Colors.grey[600],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      matchStatus == 'LIVE' ? 'Đang diễn ra' : matchStatus == 'FINISHED' ? 'Kết thúc' : 'Sắp diễn ra',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    match.score,
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
-          )
-        ],
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('1.36', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  SizedBox(height: 8),
+                  Text('4.75', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  SizedBox(height: 8),
+                  Text('8.50', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
