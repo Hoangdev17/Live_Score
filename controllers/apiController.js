@@ -217,8 +217,41 @@ exports.getMatchById = async (req, res) => {
       },
       league: matchData.league.name,
       season: matchData.league.season,
-      statistics: matchData.statistics ?? [],
-      events: matchData.events ?? [],
+      statistics: (matchData.statistics || []).map((stat) => ({
+        team: {
+          id: stat.team.id,
+          name: stat.team.name,
+          logo: stat.team.logo,
+        },
+        statistics: stat.statistics.map((s) => ({
+          type: s.type,
+          value: s.value,
+        })),
+      })),
+      events: (matchData.events || []).map((event) => ({
+        time: {
+          elapsed: event.time.elapsed,
+          extra: event.time.extra ?? null,
+        },
+        team: {
+          id: event.team.id,
+          name: event.team.name,
+          logo: event.team.logo,
+        },
+        player: {
+          id: event.player.id,
+          name: event.player.name,
+        },
+        assist: event.assist
+          ? {
+              id: event.assist.id,
+              name: event.assist.name,
+            }
+          : null,
+        type: event.type,
+        detail: event.detail,
+        comments: event.comments,
+      })),
     };
 
     res.json(match);
