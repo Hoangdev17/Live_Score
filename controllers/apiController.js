@@ -252,6 +252,26 @@ exports.getMatchById = async (req, res) => {
         detail: event.detail,
         comments: event.comments,
       })),
+      lineups: {
+        home: (matchData.lineups.home || []).map((player) => ({
+          player: {
+            id: player.player.id,
+            name: player.player.name,
+            position: player.player.position,
+            photo: player.player.photo,
+          },
+          formation: player.formation,
+        })),
+        away: (matchData.lineups.away || []).map((player) => ({
+          player: {
+            id: player.player.id,
+            name: player.player.name,
+            position: player.player.position,
+            photo: player.player.photo,
+          },
+          formation: player.formation,
+        })),
+      },
     };
 
     res.json(match);
