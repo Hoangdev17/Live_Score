@@ -266,6 +266,7 @@ exports.getMatchById = async (req, res) => {
     // Thêm chi tiết cho lineups (startXI, substitutes)
     if (match.lineups.home) {
       match.lineups.home = {
+        teamName: matchData.teams?.home?.name || 'N/A',
         formation: match.lineups.home.formation || 'N/A',
         coach: match.lineups.home.coach ? {
           name: match.lineups.home.coach.name,
@@ -288,6 +289,7 @@ exports.getMatchById = async (req, res) => {
 
     if (match.lineups.away) {
       match.lineups.away = {
+        teamName: matchData.teams?.away?.name || 'N/A',
         formation: match.lineups.away.formation || 'N/A',
         coach: match.lineups.away.coach ? {
           name: match.lineups.away.coach.name,
