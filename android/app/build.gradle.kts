@@ -8,7 +8,11 @@ plugins {
 android {
     namespace = "com.example.livescore"
     compileSdk = flutter.compileSdkVersion
+<<<<<<< HEAD
     ndkVersion = flutter.ndkVersion
+=======
+    ndkVersion = "27.0.12077973"
+>>>>>>> e39c324 (Update scroll load)
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

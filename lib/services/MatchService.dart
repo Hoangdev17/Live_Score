@@ -41,4 +41,23 @@ class MatchService {
     }
   }
 
+<<<<<<< HEAD
+=======
+  Future<List<Match>> fetchH2H(int homeTeamId, int awayTeamId) async {
+    final url = Uri.parse('https://live-score-3h4s.onrender.com/api/matches/h2h?homeTeamId=$homeTeamId&awayTeamId=$awayTeamId');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => Match.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load H2H: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching H2H: $e');
+      throw Exception('Failed to load H2H: $e');
+    }
+  }
+
+>>>>>>> e39c324 (Update scroll load)
 }
