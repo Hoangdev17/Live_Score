@@ -1,6 +1,7 @@
 const axios = require('axios');
 require('dotenv').config();
 const redis = require('redis');
+const User = require('../models/User');
 const client = redis.createClient();
 
 // Helper function to standardize match data
@@ -314,5 +315,89 @@ exports.getMatchById = async (req, res) => {
   } catch (err) {
     console.error('Error fetching match by ID:', err.message);
     res.status(500).json({ error: 'Không thể lấy thông tin trận đấu từ API-Football' });
+  }
+};
+
+exports.addToFavorites = async (req, res) => {
+  const { fixtureId } = req.body;
+  const userId = req.user.id;
+
+  console.log(userId);
+
+  if (!fixtureId) {
+    return res.status(400).json({ error: 'Thiếu fixture ID' });
+  }
+
+  try {
+    // Lấy dữ liệu trận đấu từ API-Football
+    const response = await axios.get('https://v3.football.api-sports.io/fixtures', {
+      headers: {
+        'x-apisports-key': process.env.API_FOOTBALL_KEY,
+      },
+      params: {
+        id: fixtureId,
+      },
+    });
+
+    const matchData = response.data.response[0];
+    if (!matchData) {
+      return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+    }
+
+    const match = {
+      id: matchData.fixture.id,
+      date: matchData.fixture.date,
+      status: matchData.fixture.status.long,
+      venue: matchData.fixture.venue.name,
+      homeTeam: matchData.teams.home.name,
+      awayTeam: matchData.teams.away.name,
+      homeLogo: matchData.teams.home.logo,
+      awayLogo: matchData.teams.away.logo,
+      goals: {
+        home: matchData.goals.home ?? 0,
+        away: matchData.goals.away ?? 0,
+      },
+      competition: matchData.league.name ?? '',
+      country: matchData.league.country ?? '',
+    };
+
+    // Cập nhật user document, thêm trận vào favorites nếu chưa có
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại' });
+    }
+
+    // Kiểm tra xem đã có trong favorites chưa
+    const exists = user.favorites.some(fav => fav.id === match.id);
+    if (exists) {
+      return res.status(400).json({ error: 'Trận đấu đã có trong danh sách yêu thích' });
+    }
+
+    // Thêm vào favorites rồi lưu
+    user.favorites.push(match);
+    await user.save();
+
+    res.status(200).json({ message: 'Đã thêm trận đấu vào danh sách yêu thích', match });
+  } catch (err) {
+    console.error('Error adding to favorites:', err.message);
+    res.status(500).json({ error: 'Không thể thêm trận đấu vào danh sách yêu thích' });
+  }
+};
+
+exports.getFavorites = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại' });
+    }
+
+    res.status(200).json({ favorites: user.favorites });
+  } catch (err) {
+    console.error('Error getting favorites:', err.message);
+    res.status(500).json({ error: 'Không thể lấy danh sách yêu thích' });
   }
 };

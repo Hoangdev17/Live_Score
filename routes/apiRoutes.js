@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');  
-const { upcomingMatches, matchLive, getCompetitions, getMatchesByCompetition, getMatchById } = require('../controllers/apiController');
+const { upcomingMatches, matchLive, getCompetitions, getMatchesByCompetition, getMatchById, addToFavorites, getFavorites } = require('../controllers/apiController');
+const authMiddleware = require('../middlewares/authMiddleware');
 require('dotenv').config(); 
 
 const router = express.Router();  // Sử dụng express.Router() để tạo router
@@ -11,6 +12,8 @@ router.get('/matches/upcoming', upcomingMatches);
 router.get('/matches/live', matchLive);
 router.get('/matches/competitions', getCompetitions);
 router.get('/matches/matchByCompetitions', getMatchesByCompetition);
+router.post("/matches/addFavoriteMatch",authMiddleware, addToFavorites);
+router.get("/matches/getfavorite", authMiddleware, getFavorites);
 router.get('/matches/:fixtureId', getMatchById);
 
 module.exports = router;  
