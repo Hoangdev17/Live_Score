@@ -401,3 +401,27 @@ exports.getFavorites = async (req, res) => {
     res.status(500).json({ error: 'Không thể lấy danh sách yêu thích' });
   }
 };
+
+exports.removeFromFavorites = async (req, res) => {
+  const { fixtureId } = req.body;
+  const userId = req.user.id;
+
+  if (!fixtureId) {
+    return res.status(400).json({ error: 'Thiếu fixture ID' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại' });
+    }
+
+    user.favorites = user.favorites.filter(fav => fav.id !== fixtureId);
+    await user.save();
+
+    res.status(200).json({ message: 'Đã xóa trận đấu khỏi danh sách yêu thích' });
+  } catch (err) {
+    console.error('Error removing from favorites:', err.message);
+    res.status(500).json({ error: 'Không thể xóa trận đấu khỏi danh sách yêu thích' });
+  }
+};
