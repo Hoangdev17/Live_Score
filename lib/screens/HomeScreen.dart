@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:livescore/screens/CompetitionScreen.dart';
+import 'package:livescore/screens/FavoriteScreen.dart';
 import 'package:livescore/screens/LiveScreen.dart';
 import '../models/Match.dart';
 import '../services/MatchService.dart';
@@ -153,9 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return Center(child: Text('Gợi ý content'));
       case 3:
-        return isLoading
-            ? Center(child: CircularProgressIndicator(color: Colors.blueAccent))
-            : _buildMatchList();
+        return FavoriteScreen(allMatches: matches);
       case 4:
         return CompetitionScreen();
       default:

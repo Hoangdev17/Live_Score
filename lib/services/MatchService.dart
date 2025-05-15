@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:livescore/models/MatchDetail.dart';
 import '../models/Match.dart';
@@ -39,6 +40,40 @@ class MatchService {
     } else {
       throw Exception('Failed to load match details');
     }
+  }
+
+  // Hàm fetch
+  Future<List<dynamic>> fetchFavoriteMatchIds() async {
+    final token = await _getToken();
+    print('Token: $token');
+
+    if (token == null) return [];
+
+    final response = await http.get(
+      Uri.parse('https://live-score-3h4s.onrender.com/api/matches/getfavorite'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print('Status code: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      final List<dynamic> favorites = jsonResponse['favorites'];
+
+      return favorites;
+    } else {
+      return [];
+    }
+  }
+
+  final _storage = const FlutterSecureStorage();
+  // Hàm giả định lấy token (bạn thay thế phần này theo code của bạn)
+  Future<String?> _getToken() async {
+    return await _storage.read(key: 'jwt_token');
   }
 
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,9 +12,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  final _storage = const FlutterSecureStorage();
 
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
@@ -23,32 +25,50 @@ class _LoginScreenState extends State<LoginScreen> {
 
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:5000/api/auth/login'),
+          Uri.parse('https://live-score-3h4s.onrender.com/api/auth/login'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'username': _usernameController.text,
+            'email': _emailController.text,
             'password': _passwordController.text,
           }),
         );
+
+        print('Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
 
         setState(() {
           _isLoading = false;
         });
 
         if (response.statusCode == 200) {
+          // Parse the response to get the token
+          final responseData = jsonDecode(response.body);
+          final token = responseData['token'];
+
+          if (token == null || token.isEmpty) {
+            throw Exception('Token không được trả về từ server');
+          }
+
+          // Store the token in secure storage
+          await _storage.write(
+            key: 'jwt_token',
+            value: token,
+          );
+
           // Đăng nhập thành công
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Login successful!'),
+              content: Text('Đăng nhập thành công!'),
               backgroundColor: Colors.green,
             ),
           );
+
           // Điều hướng đến màn hình chính
           Navigator.pushReplacementNamed(context, '/home');
         } else {
           // Xử lý lỗi từ API
           final errorData = jsonDecode(response.body);
-          final errorMessage = errorData['message'] ?? 'Login failed';
+          final errorMessage = errorData['message'] ?? 'Đăng nhập thất bại';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
@@ -60,10 +80,10 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _isLoading = false;
         });
-        // Xử lý lỗi kết nối hoặc ngoại lệ
+        // Xử lý lỗi kết nối, lưu trữ, hoặc ngoại lệ
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Lỗi: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -73,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -136,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 32),
                     // Trường nhập Username
                     TextFormField(
-                      controller: _usernameController,
+                      controller: _emailController,
                       decoration: InputDecoration(
                         labelText: 'Username',
                         prefixIcon: const Icon(Icons.person, color: Colors.white),
@@ -151,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: const TextStyle(color: Colors.black87),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your username';
+                          return 'Vui lòng nhập tên người dùng';
                         }
                         return null;
                       },
@@ -175,10 +195,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: const TextStyle(color: Colors.black87),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
+                          return 'Vui lòng nhập mật khẩu';
                         }
                         if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                          return 'Mật khẩu phải có ít nhất 6 ký tự';
                         }
                         return null;
                       },
@@ -204,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         elevation: 5,
                       ),
                       child: const Text(
-                        'Login',
+                        'Đăng nhập',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -218,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.pushNamed(context, '/register');
                       },
                       child: Text(
-                        'Don\'t have an account? Register',
+                        'Chưa có tài khoản? Đăng ký',
                         style: TextStyle(
                           color: Colors.amber[200], // Vàng nhạt nổi bật
                           fontSize: 16,

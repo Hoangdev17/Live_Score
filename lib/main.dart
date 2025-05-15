@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue, // Đặt màu chủ đạo cho ứng dụng
       ),
       // Định nghĩa các routes
-      initialRoute: '/home', // Màn hình mặc định là trang Login
+      initialRoute: '/login', // Màn hình mặc định là trang Login
       routes: {
         '/login': (context) => const LoginScreen(), // Route cho trang Login
         '/register': (context) => const RegisterScreen(), // Route cho trang Register

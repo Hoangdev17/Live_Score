@@ -24,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:5000/api/auth/register'),
+          Uri.parse('https://live-score-3h4s.onrender.com/api/auth/register'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'username': _usernameController.text,

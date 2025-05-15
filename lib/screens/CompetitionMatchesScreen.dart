@@ -1,8 +1,19 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:livescore/models/Competition.dart';
 import '../models/Match.dart';
 import '../services/MatchService.dart';
-import '../screens/MatchDetailScreen.dart'; // ✅ Import màn hình chi tiết
+import '../screens/MatchDetailScreen.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+
+final _storage = const FlutterSecureStorage();
+
+Future<String?> _getToken() async {
+  return await _storage.read(key: 'jwt_token');
+}
 
 class CompetitionMatchesScreen extends StatefulWidget {
   final int leagueId;
@@ -25,6 +36,7 @@ class CompetitionMatchesScreen extends StatefulWidget {
 class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
   bool isLoading = true;
   List<Match> matches = [];
+  Map<int, bool> favoriteMatches = {};
 
   @override
   void initState() {
@@ -38,14 +50,109 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
         leagueId: widget.leagueId,
         season: widget.season,
       );
+
+      final favoriteIds = await _fetchFavoriteMatches();
+
       setState(() {
         matches = data;
+        favoriteMatches = {
+          for (var match in matches)
+            match.id: favoriteIds.contains(match.id),
+        };
         isLoading = false;
       });
     } catch (e) {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi tải trận đấu: $e')),
+      );
+    }
+  }
+
+  Future<List<int>> _fetchFavoriteMatches() async {
+    final token = await _getToken();
+    if (token == null) return [];
+
+    final response = await http.get(
+      Uri.parse('https://live-score-3h4s.onrender.com/api/matches/getfavorite'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+      final List<dynamic> favorites = jsonResponse['favorites'];
+      // Lấy list id từ từng object trong favorites
+      final List<int> favoriteIds = favorites.map<int>((match) => match['id'] as int).toList();
+      return favoriteIds;
+    } else {
+      return [];
+    }
+  }
+
+  Future<void> _toggleFavorite(int matchId) async {
+    final token = await _getToken();
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn chưa đăng nhập')),
+      );
+      return;
+    }
+
+    final currentlyFavorite = favoriteMatches[matchId] ?? false;
+
+    final url = currentlyFavorite
+        ? 'https://live-score-3h4s.onrender.com/api/matches/remove'
+        : 'https://live-score-3h4s.onrender.com/api/matches/addFavoriteMatch';
+
+    try {
+      final response = currentlyFavorite
+          ? await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fixtureId': matchId}),
+      )
+          : await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fixtureId': matchId}),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          favoriteMatches[matchId] = !currentlyFavorite;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(currentlyFavorite
+                ? 'Đã xóa khỏi danh sách yêu thích'
+                : 'Đã thêm vào danh sách yêu thích'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Exception: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi kết nối: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -231,6 +338,15 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            icon: Icon(
+              favoriteMatches[match.id] ?? false
+                  ? Icons.favorite
+                  : Icons.favorite_border,
+              color: favoriteMatches[match.id] ?? false ? Colors.red : Colors.grey,
+            ),
+            onPressed: () => _toggleFavorite(match.id),
           ),
         ],
       ),
