@@ -13,12 +13,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login and Register Demo',
+      title: 'Football Pro',
       theme: ThemeData(
         primarySwatch: Colors.blue, // Đặt màu chủ đạo cho ứng dụng
       ),
       // Định nghĩa các routes
-      initialRoute: '/à', // Màn hình mặc định là trang Login
+      initialRoute: '/login', // Màn hình mặc định là trang Login
       routes: {
         '/login': (context) => const LoginScreen(), // Route cho trang Login
         '/register': (context) => const RegisterScreen(), // Route cho trang Register
