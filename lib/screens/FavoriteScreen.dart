@@ -4,6 +4,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import '../models/Match.dart';
 import '../screens/MatchDetailScreen.dart';
+import '../services/MatchService.dart';
+import '../models/MatchDetail.dart';
+import '../services/MatchDetailCacheManager.dart';
+
 
 class FavoriteScreen extends StatefulWidget {
   final List<Match> allMatches;
@@ -18,6 +22,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   List<Match> favoriteMatches = [];
   Map<int, bool> favoriteStatus = {};
   bool isLoading = false;
+  final cacheManager = MatchDetailCacheManager();
   final storage = FlutterSecureStorage();
   final String baseUrl = 'https://live-score-3h4s.onrender.com/api';
 
@@ -81,21 +86,36 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
         return;
       }
 
-      // Check if favorites are objects or IDs
-      if (favorites.isNotEmpty && favorites[0] is Map) {
-        // Favorites are match objects
+      if (favorites[0] is Map) {
         matches = favorites.map((fav) => Match.fromJson(fav)).toList();
       } else {
-        // Favorites are IDs, filter from allMatches
         matches = widget.allMatches
             .where((match) => favorites.contains(match.id))
             .toList();
       }
 
+      List<Match> enrichedMatches = [];
+
+      for (var match in matches) {
+        try {
+          final detail = await cacheManager.getMatchDetail(match.id);
+
+          match.homeTeamLogo = detail.homeLogo;
+          match.awayTeamLogo = detail.awayLogo;
+          match.homeTeamScore = detail.goals.home;
+          match.awayTeamScore = detail.goals.away;
+        } catch (e) {
+          print('Lỗi khi lấy detail từ cacheManager: $e');
+        }
+
+        enrichedMatches.add(match);
+      }
+
       setState(() {
-        favoriteMatches = matches;
-        favoriteStatus = {for (var match in matches) match.id: true};
-        print('Favorite match ids: ${matches.map((m) => m.id).toList()}');
+        favoriteMatches = enrichedMatches;
+        favoriteStatus = {
+          for (var match in enrichedMatches) match.id: true,
+        };
         isLoading = false;
       });
     } catch (e) {
@@ -105,6 +125,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
       );
     }
   }
+
 
   Future<void> _toggleFavorite(int matchId) async {
     final token = await _getToken();
@@ -133,36 +154,50 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        setState(() {
-          if (isFavorite) {
+        if (isFavorite) {
+          // Gỡ yêu thích
+          setState(() {
             favoriteMatches.removeWhere((match) => match.id == matchId);
             favoriteStatus.remove(matchId);
-          } else {
-            final match = widget.allMatches.firstWhere(
-                  (m) => m.id == matchId,
-              orElse: () => Match(
-                id: matchId,
-                homeTeam: '',
-                awayTeam: '',
-                utcDate: '',
-                competition: '',
-                country: '',
-                score: '-',
-                homeTeamLogo: '',
-                awayTeamLogo: '',
-                homeTeamScore: 0,
-                awayTeamScore: 0,
-                status: '',
-                venue: '',
-              ),
+          });
+        } else {
+          // Thêm yêu thích mới
+          Match match = widget.allMatches.firstWhere(
+                (m) => m.id == matchId,
+            orElse: () => Match(
+              id: matchId,
+              homeTeam: '',
+              awayTeam: '',
+              utcDate: '',
+              competition: '',
+              country: '',
+              score: '-',
+              homeTeamLogo: '',
+              awayTeamLogo: '',
+              homeTeamScore: 0,
+              awayTeamScore: 0,
+              status: '',
+              venue: '',
+            ),
+          );
 
-            );
-            if (match.id == matchId) {
-              favoriteMatches.add(match);
-              favoriteStatus[matchId] = true;
-            }
+          try {
+            final detail = await cacheManager.getMatchDetail(matchId);
+
+            match.homeTeamLogo = detail.homeLogo;
+            match.awayTeamLogo = detail.awayLogo;
+            match.homeTeamScore = detail.goals.home;
+            match.awayTeamScore = detail.goals.away;
+          } catch (e) {
+            print('Lỗi khi lấy dữ liệu chi tiết matchId $matchId: $e');
           }
-        });
+
+          setState(() {
+            favoriteMatches.add(match);
+            favoriteStatus[matchId] = true;
+          });
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

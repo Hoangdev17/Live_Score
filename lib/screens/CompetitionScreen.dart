@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/Competition.dart';
 import '../services/CompetitionService.dart';
 import 'CompetitionMatchesScreen.dart';
+import '../services/CompetitionCacheManager.dart';
 
 class CompetitionScreen extends StatefulWidget {
   @override
@@ -16,25 +17,30 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
   int currentPage = 1;
   List<Competition> competitions = [];
   final ScrollController _scrollController = ScrollController();
+  final cacheManager = CompetitionCacheManager();
 
   @override
   void initState() {
     super.initState();
     _configureImageCache();
     _loadCompetitions();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        if (!isLoading && hasMoreData) {
-          _loadMoreCompetitions();
-        }
-      }
-    });
+    _scrollController.addListener(_scrollListener);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!isLoading && hasMoreData) {
+        _loadMoreCompetitions();
+      }
+    }
   }
 
   void _configureImageCache() {
@@ -44,7 +50,10 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
 
   Future<void> _loadCompetitions() async {
     try {
+      setState(() => isLoading = true);
       final data = await CompetitionService().fetchCompetitions(page: currentPage);
+      cacheManager.cacheCompetitions(data);
+
       setState(() {
         competitions = data;
         isLoading = false;
@@ -63,6 +72,8 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
     try {
       final nextPage = currentPage + 1;
       final data = await CompetitionService().fetchCompetitions(page: nextPage);
+      cacheManager.cacheCompetitions(data);
+
       if (data.isEmpty) {
         hasMoreData = false;
       } else {
@@ -83,113 +94,121 @@ class _CompetitionScreenState extends State<CompetitionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Competitions')),
+      appBar: AppBar(
+        title: Text('Competitions'),
+        backgroundColor: Color(0xFF1A2A3A),
+      ),
+      backgroundColor: Color(0xFF1A2A3A),
       body: isLoading && competitions.isEmpty
           ? Center(child: CircularProgressIndicator(color: Colors.blueAccent))
           : ListView.builder(
         controller: _scrollController,
-        itemCount: competitions.length + (isLoading ? 1 : 0),
+        itemCount: competitions.length + (hasMoreData ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == competitions.length) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(color: Colors.blueAccent),
               ),
             );
           }
           final comp = competitions[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CompetitionMatchesScreen(
-                    leagueId: comp.id,
-                    season: comp.year,
-                    leagueName: comp.name,
-                    logo: comp.logo,
-                  ),
-                ),
-              );
-            },
-            child: _buildCompetitionTile(comp),
-          );
+          return _buildCompetitionTile(comp);
         },
       ),
     );
   }
 
   Widget _buildCompetitionTile(Competition comp) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _buildLogo(comp.logo, comp.flag),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(comp.name,
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('${comp.country} • ${comp.year}',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 14)),
-                Text('${comp.start} - ${comp.end}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CompetitionMatchesScreen(
+              leagueId: comp.id,
+              season: comp.year,
+              leagueName: comp.name,
+              logo: comp.logo,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogo(String logoUrl, String flagUrl) {
-    if (logoUrl.isEmpty || !Uri.parse(logoUrl).isAbsolute) {
-      return _buildFallbackWidget(flagUrl);
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+        );
+      },
       child: Container(
-        height: 40,
-        width: 40,
-        color: Colors.grey[700],
-        child: CachedNetworkImage(
-          imageUrl: logoUrl,
-          fit: BoxFit.contain,
-          memCacheHeight: 80,
-          memCacheWidth: 80,
-          placeholder: (context, url) => Center(
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blueAccent),
-          ),
-          errorWidget: (context, url, error) => _buildFallbackWidget(flagUrl),
+        margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _buildLogo(comp.logo, comp.flag),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(comp.name,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('${comp.country} • ${comp.year}',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+                  Text('${comp.start} - ${comp.end}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFallbackWidget(String flagUrl) {
-    if (flagUrl.isNotEmpty && Uri.parse(flagUrl).isAbsolute) {
-      return CachedNetworkImage(
-        imageUrl: flagUrl,
+  Widget _buildLogo(String logoUrl, String flagUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
         height: 40,
         width: 40,
-        fit: BoxFit.contain,
-        errorWidget: (context, url, error) => Icon(Icons.error, color: Colors.redAccent),
-      );
-    }
-    return Container(
+        color: Colors.grey[800],
+        child: logoUrl.isNotEmpty && Uri.parse(logoUrl).isAbsolute
+            ? CachedNetworkImage(
+          imageUrl: logoUrl,
+          fit: BoxFit.contain,
+          memCacheHeight: 80,
+          memCacheWidth: 80,
+          placeholder: (context, url) => Center(
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.blueAccent),
+          ),
+          errorWidget: (context, url, error) => _buildFallbackWidget(flagUrl),
+        )
+            : _buildFallbackWidget(flagUrl),
+      ),
+    );
+  }
+
+  Widget _buildFallbackWidget(String flagUrl) {
+    return flagUrl.isNotEmpty && Uri.parse(flagUrl).isAbsolute
+        ? CachedNetworkImage(
+      imageUrl: flagUrl,
       height: 40,
       width: 40,
-      decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(8)),
-      child: Icon(Icons.image_not_supported, color: Colors.white),
-    );
+      fit: BoxFit.contain,
+      errorWidget: (context, url, error) => Icon(Icons.error, color: Colors.redAccent),
+    )
+        : Icon(Icons.emoji_events, color: Colors.blueAccent);
   }
 }

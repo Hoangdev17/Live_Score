@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/Match.dart';
 import '../services/MatchService.dart';
 import '../screens/MatchDetailScreen.dart';
+import '../services/MatchDetailCacheManager.dart';
 
 final _storage = const FlutterSecureStorage();
 
@@ -31,12 +32,14 @@ class CompetitionMatchesScreen extends StatefulWidget {
   _CompetitionMatchesScreenState createState() => _CompetitionMatchesScreenState();
 }
 
-class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> with SingleTickerProviderStateMixin {
+class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen>
+    with SingleTickerProviderStateMixin {
   bool isLoading = true;
   List<Match> matches = [];
   Map<int, bool> favoriteMatches = {};
   TabController? _tabController;
   final List<String> tabs = ['Tất cả', 'Do ván', 'Các trận đấu', 'Dữ liệu trực thu'];
+  final cacheManager = MatchDetailCacheManager();
 
   @override
   void initState() {
@@ -53,20 +56,39 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> wit
 
   Future<void> _loadMatches() async {
     try {
+      setState(() => isLoading = true);
       final data = await MatchService().fetchMatchesByCompetition(
         leagueId: widget.leagueId,
         season: widget.season,
       );
       final favoriteIds = await _fetchFavoriteMatches();
 
+      final enrichedMatches = await Future.wait(data.map((match) async {
+        try {
+          final detail = await cacheManager.getMatchDetail(match.id);
+          return match.copyWith(
+            homeTeamLogo: detail.homeLogo,
+            awayTeamLogo: detail.awayLogo,
+            homeTeamScore: detail.goals.home,
+            awayTeamScore: detail.goals.away,
+            score: '${detail.goals.home} - ${detail.goals.away}',
+            status: detail.status,
+          );
+        } catch (e) {
+          print('Error loading detail for match ${match.id}: $e');
+          return match;
+        }
+      }));
+
       setState(() {
-        matches = data;
+        matches = enrichedMatches;
         favoriteMatches = {
           for (var match in matches) match.id: favoriteIds.contains(match.id),
         };
         isLoading = false;
       });
     } catch (e) {
+      print('Error loading matches: $e');
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -186,7 +208,7 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> wit
         title: Row(
           children: [
             CachedNetworkImage(
-              imageUrl: widget.logo.isNotEmpty ? widget.logo : 'https://via.placeholder.com/30',
+              imageUrl: widget.logo,
               height: 30,
               width: 30,
               fit: BoxFit.contain,
@@ -257,101 +279,107 @@ class _CompetitionMatchesScreenState extends State<CompetitionMatchesScreen> wit
   }
 
   Widget _buildMatchTile(Match match) {
-    final isFinished = match.status.toLowerCase().contains('finished');
+    final isFinished = ['finished', 'completed', 'ft', 'match finished']
+        .any((s) => match.status.toLowerCase().contains(s));
+    final isLive = ['live', 'in progress', 'first half', 'second half', 'penalties']
+        .any((s) => match.status.toLowerCase().contains(s));
+
     final time = isFinished
         ? 'Hết'
+        : isLive
+        ? 'Live'
         : match.utcDate.contains('T')
         ? match.utcDate.split('T')[1].substring(0, 5)
         : match.utcDate;
-    final homeScore = match.homeTeamScore?.toString() ?? '-';
-    final awayScore = match.awayTeamScore?.toString() ?? '-';
 
-    return Semantics(
-      label: '${match.homeTeam} vs ${match.awayTeam}, ${isFinished ? "Kết thúc" : "Sắp diễn ra"}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey, width: 0.3),
+    final scoreOrStatus = isFinished || isLive
+        ? (match.score.isNotEmpty
+        ? match.score
+        : (match.homeTeamScore != null && match.awayTeamScore != null
+        ? '${match.homeTeamScore} - ${match.awayTeamScore}'
+        : '-'))
+        : '-';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey, width: 0.3)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 50,
+            child: Text(
+              time,
+              style: TextStyle(
+                color: isLive ? Colors.red : Colors.white,
+                fontWeight: isLive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 50,
-              child: Text(
-                time,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Row(
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: match.homeTeamLogo.isNotEmpty ? match.homeTeamLogo : 'https://via.placeholder.com/28',
-                    height: 28,
-                    width: 28,
-                    fit: BoxFit.contain,
-                    placeholder: (context, url) => const CircularProgressIndicator(),
-                    errorWidget: (context, url, error) => const Icon(Icons.sports_soccer, color: Colors.white),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      match.homeTeam,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                isFinished ? '$homeScore - $awayScore' : '-',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            flex: 4,
+            child: Row(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: match.homeTeamLogo,
+                  height: 28,
+                  width: 28,
+                  errorWidget: (ctx, url, err) => const Icon(Icons.sports_soccer, color: Colors.white),
                 ),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Text(
-                      match.awayTeam,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    match.homeTeam,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white),
                   ),
-                  const SizedBox(width: 8),
-                  CachedNetworkImage(
-                    imageUrl: match.awayTeamLogo.isNotEmpty ? match.awayTeamLogo : 'https://via.placeholder.com/28',
-                    height: 28,
-                    width: 28,
-                    fit: BoxFit.contain,
-                    placeholder: (context, url) => const CircularProgressIndicator(),
-                    errorWidget: (context, url, error) => const Icon(Icons.sports_soccer, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              scoreOrStatus,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isLive ? Colors.red : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Text(
+                    match.awayTeam,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(color: Colors.white),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                CachedNetworkImage(
+                  imageUrl: match.awayTeamLogo,
+                  height: 28,
+                  width: 28,
+                  errorWidget: (ctx, url, err) => const Icon(Icons.sports_soccer, color: Colors.white),
+                ),
+              ],
             ),
-            IconButton(
-              icon: Icon(
-                favoriteMatches[match.id] ?? false ? Icons.favorite : Icons.favorite_border,
-                color: favoriteMatches[match.id] ?? false ? Colors.red : Colors.grey,
-              ),
-              onPressed: () => _toggleFavorite(match.id),
+          ),
+          IconButton(
+            icon: Icon(
+              favoriteMatches[match.id] ?? false ? Icons.favorite : Icons.favorite_border,
+              color: favoriteMatches[match.id] ?? false ? Colors.red : Colors.grey,
             ),
-          ],
-        ),
+            onPressed: () => _toggleFavorite(match.id),
+          ),
+        ],
       ),
     );
   }

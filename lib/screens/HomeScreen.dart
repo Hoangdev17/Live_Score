@@ -21,8 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
   late StreamController<List<Match>> _liveMatchController;
   StreamSubscription<List<Match>>? _liveMatchSubscription;
-  bool _hasLoadedMatches = false; // Track if matches are already loaded
-  bool _hasLoadedLiveMatches = false; // Track if live matches are loaded
+  bool _hasLoadedMatches = false;
+  bool _hasLoadedLiveMatches = false;
 
   @override
   void initState() {
@@ -34,16 +34,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadMatches() async {
-    if (_hasLoadedMatches) return; // Skip if already loaded
+    if (_hasLoadedMatches) return;
     setState(() => isLoading = true);
     try {
       final newMatches = await MatchService().fetchMatches();
       setState(() {
         matches = newMatches;
-        liveMatches = List.from(newMatches); // Create a copy for live updates
+        liveMatches = List.from(newMatches);
         _hasLoadedMatches = true;
       });
-      _liveMatchController.add(liveMatches); // Update stream with initial data
+      _liveMatchController.add(liveMatches);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Không thể tải danh sách trận: $e')),
@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Thích', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          title: Text('Football Pro', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           backgroundColor: Color(0xFF1A1A1A),
           elevation: 0,
           centerTitle: true,
@@ -132,11 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.sports_soccer, size: 28), label: 'Tất cả'),
+            BottomNavigationBarItem(icon: Icon(Icons.emoji_events, size: 28), label: 'Giải đấu'),
             BottomNavigationBarItem(icon: Icon(Icons.live_tv, size: 28), label: 'Trực tiếp'),
             BottomNavigationBarItem(icon: Icon(Icons.star_border, size: 28), label: 'Gợi ý'),
             BottomNavigationBarItem(icon: Icon(Icons.star, size: 28), label: 'Thích'),
-            BottomNavigationBarItem(icon: Icon(Icons.emoji_events, size: 28), label: 'Giải đấu'),
           ],
         ),
         body: _buildTabContent(),
@@ -147,17 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTabContent() {
     switch (selectedIndex) {
       case 0:
-        return isLoading
-            ? Center(child: CircularProgressIndicator(color: Colors.blueAccent))
-            : _buildMatchList();
+        return CompetitionScreen();
       case 1:
         return LiveScreen();
       case 2:
         return FootballChatScreen();
       case 3:
         return FavoriteScreen(allMatches: matches);
-      case 4:
-        return CompetitionScreen();
+
       default:
         return isLoading
             ? Center(child: CircularProgressIndicator(color: Colors.blueAccent))

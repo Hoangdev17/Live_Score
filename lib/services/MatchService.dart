@@ -21,7 +21,7 @@ class MatchService {
     }
   }
 
-  /// ✅ Hỗ trợ phân trang giả lập
+  /// Hỗ trợ phân trang giả lập
   Future<List<Match>> fetchMatchesByCompetition({
     required int leagueId,
     required int season,
@@ -60,6 +60,29 @@ class MatchService {
       return MatchDetail.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to load match details');
+    }
+  }
+
+  Future<Match?> fetchMatchById(int matchId) async {
+    final token = await FlutterSecureStorage().read(key: 'jwt_token');
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://live-score-3h4s.onrender.com/api/matches/$matchId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return Match.fromJson(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching match $matchId: $e');
+      return null;
     }
   }
 
